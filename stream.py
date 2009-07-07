@@ -19,6 +19,7 @@ def accept_loop(sd):
     while True:
         sock = sd.accept()
         clients.append(sock)
+        print 'Accepted connection from', sock[1]
 
 def feeder(enc):
     while True:
@@ -36,11 +37,14 @@ def stream_server(enc, clients):
             client_sock, client_addr = c
             try:
                 client_sock.send(data)
+            except socket.error:
+                dead.append(c)
             except:
                 print format_exc()
                 dead.append(c)
         for d in dead:
             if d in clients:
+                print 'Disconnected', d[1]
                 clients.remove(d)
 
 p = pyaudio.PyAudio()
@@ -51,7 +55,7 @@ stream = p.open(format=FORMAT,
                 input_device_index=2,
                 frames_per_buffer=chunk)
 
-sock = socket.socket()
+sock = socket.socket(socket.SOCK_DGRAM)
 sock.bind(('0.0.0.0', 9200))
 sock.listen(10)
 sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)

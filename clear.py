@@ -16,6 +16,7 @@ class BCT8(object):
                 return line
 
     def write(self, cmd):
+        print cmd
         self.serial.write(cmd + '\r')
 
 radio = BCT8()
@@ -23,4 +24,5 @@ radio = BCT8()
 for chan in xrange(1, 50):
     chan = str(chan).rjust(3, '0')
     radio.write('PM%s 00000000\r' % chan)
+    print radio.readline()
     sleep(0.02)
