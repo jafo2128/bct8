@@ -24,6 +24,8 @@ class DumboMessage(object):
         while len(packet) > 0:
             sentbytes = sock.send(packet)
             packet = packet[sentbytes:]
+        if self.datatype != MSG_AUDIO:
+            print '> ', repr(self.data)
 
     def recv(self, sock):
         packet = sock.recv(1024)
@@ -32,6 +34,8 @@ class DumboMessage(object):
         self.datatype, self.size = struct.unpack('>HI', header)
         while len(self.data) < self.size:
             self.data += sock.recv(self.size - len(self.data))
+        if self.datatype != MSG_AUDIO:
+            print '< ', repr(self.data)
 
 class StreamServer(object):
     CHUNKSIZE = 1024
@@ -130,7 +134,7 @@ def main():
         for client in streamer.clients.keys():
             msg.send(client)
 
-        readable = select(streamer.clients.keys(), timeout=0)[0]
+        readable = select(streamer.clients.keys(), [], [], 0)[0]
         for client in readable:
             msg = DumboMessage()
             msg.recv(client)
