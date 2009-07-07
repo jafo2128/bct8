@@ -17,6 +17,7 @@ class DumboTransport(object):
         self.sock = sock
 
     def send(self, msg):
+        print '>', msg
         packet = msg.encode()
         while packet:
             sentbytes = self.sock.send(packet)
@@ -29,7 +30,9 @@ class DumboTransport(object):
             packet = packet[:6]
             while len(packet) < datasize:
                 packet += self.sock.recv(datasize - len(packet))
-            yield DumboMessage(datatype, packet)
+            msg = DumboMessage(datatype, packet)
+            print '<', msg
+            yield msg
         return
 
 class DumboMessage(object):
@@ -41,6 +44,13 @@ class DumboMessage(object):
     def encode(self):
         header = struct.pack('>HI', self.datatype, len(self.data))
         return header + self.data
+
+    def __str__(self):
+        if self.datatype == MSG_CONTROL:
+            return '(control)', repr(self.data)
+        if self.datatype == MSG_AUDIO:
+            return '(audio)', len(self.data)
+        return '(unknown)', repr(self.data)
 
 class StreamServer(object):
     CHUNKSIZE = 1024
