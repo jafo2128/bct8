@@ -35,6 +35,9 @@ class DumboTransport(object):
             yield msg
         return
 
+    def __str__(self):
+        return repr(self.sock.getpeername())
+
 class DumboMessage(object):
     def __init__(self, datatype=None, data=''):
         self.datatype = datatype
@@ -160,6 +163,7 @@ def main():
         readable = select([x.sock for x in streamer.clients.keys()], [], [], 1)[0]
         for client in readable:
             client = mapping[client]
+            print 'got data from', client
             for msg in client.recv():
                 if msg.datatype == MSG_CONTROL:
                     control.write(msg.data)
