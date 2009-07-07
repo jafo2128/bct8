@@ -2,6 +2,7 @@ from subprocess import Popen, PIPE
 from traceback import format_exc
 from threading import Thread
 from select import select
+import struct
 import socket
 import sys
 
@@ -19,7 +20,7 @@ class DumboMessage(object):
 
     def send(self, sock):
         header = struct.pack('>HI', self.datatype, len(self.data))
-        packet = header + data
+        packet = header + self.data
         while len(packet) > 0:
             sentbytes = sock.send(packet)
             packet = packet[sentbytes:]
@@ -87,7 +88,7 @@ class StreamServer(object):
                     dead.append(client_sock)
             for d in dead:
                 if d in self.clients:
-                    print 'Disconnected', d[1]
+                    print 'Disconnected', self.clients[d]
                     del self.clients[d]
 
     def start(self):
