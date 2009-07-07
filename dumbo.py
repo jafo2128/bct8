@@ -47,10 +47,10 @@ class DumboMessage(object):
 
     def __str__(self):
         if self.datatype == MSG_CONTROL:
-            return '(control)', repr(self.data)
+            return '(control) %s' % repr(self.data)
         if self.datatype == MSG_AUDIO:
-            return '(audio)', len(self.data)
-        return '(unknown)', repr(self.data)
+            return '(audio) %i' % len(self.data)
+        return '(unknown) %s' % repr(self.data)
 
 class StreamServer(object):
     CHUNKSIZE = 1024
