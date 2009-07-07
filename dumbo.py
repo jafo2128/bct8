@@ -17,7 +17,7 @@ class DumboTransport(object):
         self.sock = sock
 
     def send(self, msg):
-        print '>', msg
+        if msg.datatype != MSG_AUDIO: print '>', msg
         packet = msg.encode()
         while packet:
             sentbytes = self.sock.send(packet)
@@ -31,7 +31,7 @@ class DumboTransport(object):
             while len(packet) < datasize:
                 packet += self.sock.recv(datasize - len(packet))
             msg = DumboMessage(datatype, packet)
-            print '<', msg
+            if msg.datatype != MSG_AUDIO: print '>', msg
             yield msg
         return
 
