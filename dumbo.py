@@ -12,30 +12,35 @@ import pyaudio
 MSG_AUDIO = 1
 MSG_CONTROL = 2
 
+class DumboTransport(object):
+    def __init__(self, sock):
+        self.sock = sock
+
+    def send(self, msg):
+        packet = msg.encode()
+        while packet:
+            sentbytes = self.sock.send(packet)
+            packet = packet[sentbytes:]
+
+    def recv(self):
+        packet = self.sock.recv(1024)
+        while packet:
+            datatype, datasize = struct.unpack('>HI', packet[:6])
+            packet = packet[:6]
+            while len(packet) < datasize:
+                packet += self.sock.recv(datasize - len(packet))
+            yield DumboMessage(datatype, packet)
+        return
+
 class DumboMessage(object):
     def __init__(self, datatype=None, data=''):
         self.datatype = datatype
         self.data = data
         self.size = len(data)
 
-    def send(self, sock):
+    def encode(self):
         header = struct.pack('>HI', self.datatype, len(self.data))
-        packet = header + self.data
-        while len(packet) > 0:
-            sentbytes = sock.send(packet)
-            packet = packet[sentbytes:]
-        if self.datatype != MSG_AUDIO:
-            print '> ', repr(self.data)
-
-    def recv(self, sock):
-        packet = sock.recv(1024)
-        header = packet[:6]
-        self.data = packet[6:]
-        self.datatype, self.size = struct.unpack('>HI', header)
-        while len(self.data) < self.size:
-            self.data += sock.recv(self.size - len(self.data))
-        if self.datatype != MSG_AUDIO:
-            print '< ', repr(self.data)
+        return header + self.data
 
 class StreamServer(object):
     CHUNKSIZE = 1024
@@ -58,7 +63,7 @@ class StreamServer(object):
                 input_device_index=2,
                 frames_per_buffer=self.CHUNKSIZE)
 
-        self.server_sock = socket.socket(socket.SOCK_DGRAM)
+        self.server_sock = socket.socket()
         self.server_sock.bind((bindaddr, bindport))
         self.server_sock.listen(10)
         self.server_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -66,7 +71,7 @@ class StreamServer(object):
     def accept_loop(self):
         while True:
             client_sock, client_addr = self.server_sock.accept()
-            self.clients[client_sock] = client_addr
+            self.clients[DumboTransport(client_sock)] = client_addr
             print 'Accepted connection from', client_addr
 
     def stream_reader(self):
@@ -84,7 +89,7 @@ class StreamServer(object):
             msg = DumboMessage(MSG_AUDIO, data)
             for client_sock in self.clients:
                 try:
-                    msg.send(client_sock)
+                    client_sock.send(msg)
                 except socket.error:
                     dead.append(client_sock)
                 except:
@@ -124,24 +129,32 @@ class ControlServer(object):
     def write(self, cmd):
         self.serial.write(cmd + '\r')
 
+def bcast_control(control, streamer):
+    for line in control.readlines():
+        msg = DumboMessage(MSG_CONTROL, line)
+        for client in streamer.clients.keys():
+            client.send(msg)
+    
 def main():
     streamer = StreamServer()
     streamer.start()
     control = ControlServer()
 
-    for line in control.readlines():
-        msg = DumboMessage(MSG_CONTROL, line)
-        for client in streamer.clients.keys():
-            msg.send(client)
+    t1 = Thread(target=bcast_control, args=[control, streamer])
+    t1.setDaemon(True)
+    t1.start()
 
-        readable = select(streamer.clients.keys(), [], [], 0)[0]
+    while True:
+        mapping = streamer.clients.keys()
+        mapping = dict(zip([x.sock for x in mapping], mapping))
+        readable = select([x.sock for x in streamer.clients.keys()], [], [], 1)[0]
         for client in readable:
-            msg = DumboMessage()
-            msg.recv(client)
-            if msg.datatype == MSG_CONTROL:
-                control.write(msg.data)
-            else:
-                print 'Recieved non-control message from', streamer.clients[client]
+            client = mapping[client]
+            for msg in client.recv():
+                if msg.datatype == MSG_CONTROL:
+                    control.write(msg.data)
+                else:
+                    print 'Recieved non-control message from', streamer.clients[client]
 
 if __name__ == '__main__':
     main()
