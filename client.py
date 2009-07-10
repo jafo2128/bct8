@@ -14,7 +14,7 @@ def main():
                 output_host_api_specific_stream_info=stream_info)
 
     sock = socket()
-    sock.connect(('192.168.1.7', 9200))
+    sock.connect(('127.0.0.1', 9200))
     transport = DumboTransport(sock)
 
     while True:
