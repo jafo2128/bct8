@@ -1,0 +1,52 @@
+Multicast server for Uniden BCT8 scanners
+
+Things you might have to configure:
+- Path to serial device (/dev/ttyUSB0)
+- Audio input device (input_device_index) see pyaudio docs for more info
+- Sample rate, channels, format may need to be changed to work with your audio
+  hardware
+- Multicast group IP (224.0.1.20) is listed as "Any private experiment"
+- Multicast TTL if you want to send data outside the local subnet. You'll
+  probably want to have IGMP or some other magic on the network to make sure
+  you're not flooding everybody
+- Control port number (9200) may be in use by something else
+- db.conf will need to be created with MySQL connection information for the
+  searchmap.py script.
+{
+ "host": "127.0.0.1",
+ "user": "fcculs",
+ "passwd": "nottelling",
+ "db": "fcculs"
+}
+
+
+To start the server, run dumbo.py. You may need to run as root if your serial
+device is not writable by all users. The server will immediately start reading
+from your audio device and send packets to the multicast group. With the default
+settings, this ends up being roughly 800 Kbps of traffic that may be broadcasted
+if your upstream switch doesn't support IGMP
+
+Open a TCP connection to the server on port 9200 to interact with the serial
+device. We assume that the device behaves like a BCT8 and sends data as strings
+terminated with a carriage return '\r'. All terminators are converted to the
+standard '\n' as seen in most environments. Netcat works well as a basic client
+
+All responses from the serial port are sent to all connected clients. Commands
+sent from other clients will not be echoed to you.
+
+searchmap.py allows you to search a reduced version of the FCC ULS database for
+callsigns, owners, frequencies and export them as programming commands for the
+BCT8. Utilities for generating this database from public FCC data are coming
+soon. If you need it sooner, contact synack .at. neohippie.net
+
+mem.py uses the TCP connection to send a list of programming commands to the
+radio.
+
+memload.py and memdump.py connect to the serial port directly to load and dump
+programming commands from the scanner
+
+clear.py writes a frequency of 000.00000 to all memory banks on the scanner
+using the serial port directly
+
+streamer.py will add itself as a member of the multicast group and pipe output
+to the sound card using pyaudio. This has been tested on Mac OS X
