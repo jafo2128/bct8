@@ -22,6 +22,7 @@ parser.add_option('-c', '--callsign', dest='callsign', default=None)
 parser.add_option('-p', '--power', dest='power', default=None)
 parser.add_option('-o', '--owner', dest='owner', default=None)
 parser.add_option('-e', '--export', dest='export', default=None)
+parser.add_option('-z', '--zerofill', dest='zerofill', action='store_true', default=False)
 
 options, args = parser.parse_args()
 queryargs = []
@@ -37,7 +38,7 @@ if not options.callsign:
     query += 'locations.latitude > %s AND locations.longitude > %s AND locations.latitude < %s AND locations.longitude < %s AND '
     queryargs += bounds
 if options.power:
-    query += 'frequencies.power=%s AND '
+    query += 'frequencies.power>=%s AND '
     queryargs.append(options.power)
 if options.owner:
     query += 'entities.owner LIKE %s AND '
@@ -65,4 +66,6 @@ if options.export:
     channels.sort(key=lambda x: x[1])
     for freq, chan in channels:
         fd.write('PM%sT%s\n' % (chan, freq))
-    fd.close()
+if options.zerofill:
+    for i in range(int(chan) + 1, 250):
+        fd.write('PM%03i 00000000\n' % i)

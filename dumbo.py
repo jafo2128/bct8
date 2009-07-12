@@ -1,5 +1,6 @@
 from subprocess import Popen, PIPE
 from traceback import format_exc
+from daemon import become_daemon
 from threading import Thread
 from select import select
 from socket import *
@@ -15,7 +16,8 @@ class StreamServer(object):
     CHANNELS = 1
     FORMAT = pyaudio.paInt16
     #encoder = '/usr/bin/oggenc --raw --raw-bits=16 --raw-chan=%i --raw-rate=%i -' % (CHANNELS, RATE)
-    #encoder = '/usr/local/bin/lame -r --bitwidth 16 -a -s %i - -' % RATE
+    #ENCODER = '/usr/local/bin/lame -r --bitwidth 16 -a -s %i - -' % RATE
+    #ENCODER = '/usr/local/bin/ffmpeg -i -'
     ENCODER = '/bin/cat'
 
     def __init__(self, bindaddr='0.0.0.0'):
@@ -60,7 +62,7 @@ class StreamServer(object):
 
 class ControlServer(object):
     def __init__(self, device='/dev/ttyUSB0', baud=57600):
-        self.serial = Serial(device, baud, timeout=1)
+        self.serial = Serial(device, baud, timeout=0.1)
         self.buf = ''
 
         self.clients = {}
@@ -80,7 +82,7 @@ class ControlServer(object):
 
     def run(self):
         while True:
-            readable = select(self.clients.keys(), [], [], 1)[0]
+            readable = select(self.clients.keys(), [], [], 0.1)[0]
             for sock in readable:
                 data = sock.recv(1024)
                 if not data:
@@ -89,7 +91,7 @@ class ControlServer(object):
                     continue
                 data = data.rstrip('\r\n')
                 self.write(data)
-            readable = select([self.serial], [], [], 1)[0]
+            readable = select([self.serial], [], [], 0.1)[0]
             for serial in readable:
                 self.buf += serial.read(1024)
                 while self.buf.find('\r') != -1:
@@ -109,4 +111,5 @@ def main():
     control.run()
 
 if __name__ == '__main__':
+    become_daemon(out_log='radio.log', err_log='radio.err')
     main()
