@@ -13,3 +13,4 @@ for line in file(sys.argv[1], 'r'):
     while not line.startswith('C'):
         line = sock.recv(1024)
         print repr(line)
+    sleep(0.2)
