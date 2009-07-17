@@ -40,12 +40,14 @@ http://neohippie.net/scanner/stream.ts
         start_response('200 OK', [('Content-type', 'video/MP2T')])
         q = Queue()
         self.queues.append(q)
+        print 'Starting output stream for', request.remote_addr
         while True:
             try:
                 yield q.get()
             except:
                 if q in self.queues:
                     self.queues.remove(q)
+                    print 'No longer sending data to', request.remote_addr
                 return
 
 def input_loop(app):
@@ -55,7 +57,7 @@ def input_loop(app):
     while True:
         print 'Waiting for input stream'
         sd, addr = sock.accept()
-        print 'Accepted input stream from', addr
+        print 'Connected input stream from', addr
         data = True
         while data:
             readable = select([sd], [], [], 0.1)[0]
