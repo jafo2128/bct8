@@ -1,64 +1,9 @@
-from subprocess import Popen, PIPE
-from traceback import format_exc
 from daemon import become_daemon
 from threading import Thread
 from select import select
 from socket import *
-import struct
-import sys
 
 from serial import Serial
-import pyaudio
-
-class StreamServer(object):
-    CHUNKSIZE = 1024
-    RATE = 48000
-    CHANNELS = 1
-    FORMAT = pyaudio.paInt16
-    #encoder = '/usr/bin/oggenc --raw --raw-bits=16 --raw-chan=%i --raw-rate=%i -' % (CHANNELS, RATE)
-    #ENCODER = '/usr/local/bin/lame -r --bitwidth 16 -a -s %i - -' % RATE
-    #ENCODER = '/usr/local/bin/ffmpeg -i -'
-    ENCODER = '/bin/cat'
-
-    def __init__(self, bindaddr='0.0.0.0'):
-        self.clients = {}
-        self.enc = Popen(self.ENCODER.split(' '), stdin=PIPE, stdout=PIPE)
-
-        p = pyaudio.PyAudio()
-        self.audio = p.open(format=self.FORMAT,
-                channels=self.CHANNELS,
-                rate=self.RATE,
-                input=True,
-                input_device_index=2,
-                frames_per_buffer=self.CHUNKSIZE)
-
-        self.sock = socket(AF_INET, SOCK_DGRAM)
-        self.sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
-        self.sock.setsockopt(IPPROTO_IP, IP_MULTICAST_TTL, 1)
-
-    def stream_reader(self):
-        while True:
-            try:
-                data = self.audio.read(self.CHUNKSIZE)
-            except:
-                continue
-            self.enc.stdin.write(data)
-
-    def stream_server(self):
-        while True:
-            data = self.enc.stdout.read(self.CHUNKSIZE)
-            while data:
-                bytes = self.sock.sendto(data, 0, ('224.0.1.20', 9200))
-                data = data[bytes:]
-
-    def start(self):
-        t2 = Thread(target=self.stream_reader)
-        t2.setDaemon(True)
-        t2.start()
-
-        t3 = Thread(target=self.stream_server)
-        t3.setDaemon(True)
-        t3.start()
 
 class ControlServer(object):
     def __init__(self, device='/dev/ttyUSB0', baud=57600):
@@ -100,8 +45,6 @@ class ControlServer(object):
                         sock.send(line + '\n')
 
 def main():
-    streamer = StreamServer()
-    streamer.start()
     control = ControlServer()
 
     t1 = Thread(target=control.accept_loop, args=[])
@@ -111,5 +54,6 @@ def main():
     control.run()
 
 if __name__ == '__main__':
-    become_daemon(out_log='radio.log', err_log='radio.err')
+    logfd = file('radio.log', 'a')
+    become_daemon(out_log=logfd, err_log=logfd)
     main()
