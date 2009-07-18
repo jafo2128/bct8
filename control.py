@@ -8,10 +8,9 @@ def encode_freq(freq):
 
 def decode_freq(freq):
     freq = freq.lstrip('F')
-    major = float(freq[:4])
-    minor = float(freq[4:])
-    minor *= 0.0001
-    return major + minor
+    major = int(freq[:4])
+    minor = int(freq[4:])
+    return '%i.%i' % (major, minor)
 
 class RadioControl(object):
     def __init__(self, server):
@@ -30,7 +29,6 @@ class RadioControl(object):
 
     def readline(self):
         while self.buf.find('\n') == -1:
-            print 'loop', repr(self.buf)
             self.buf += self.sock.recv(1024)
 
         line, self.buf = self.buf.split('\n', 1)
@@ -38,10 +36,10 @@ class RadioControl(object):
         return line
 
     def set_frequency(self, freq):
-        if self.send('RF' + encode_freq(freq)) != 'OK':
-            return False
-        else:
+        if self.send('RF' + encode_freq(freq)) == 'OK':
             return True
+        else:
+            return False
 
     def dump_memory(self, bank):
         dump = []
@@ -62,11 +60,33 @@ class RadioControl(object):
             cmd = 'PM%03i%s%s' % (count, trunk, encode_freq(freq))
             self.send(cmd)
 
+    def set_boolean(self, cmd, flag):
+        if flag:
+            flag = 'N'
+        else:
+            flag = 'F'
+        if self.send(cmd + flag) == 'OK':
+            return True
+        else:
+            return False
+
+    def set_status_bit(self, flag):
+        return self.set_boolean('BT', flag)
+
+    def set_delay(self, flag):
+        return self.set_boolean('DL', flag)
+
+    def set_data_skip(self, flag):
+        return self.set_boolean('DS', flag)
+
+    def set_enter_lock(self, flag):
+        return self.set_boolean('EL', flag)
+
 def test():
     control = RadioControl(('192.168.1.7', 9200))
     dump = control.dump_memory(0)
-    print repr(dump)
     control.load_memory(0, dump)
+    assert control.set_frequency('121.5')
 
 if __name__ == '__main__':
     test()
